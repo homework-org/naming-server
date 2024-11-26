@@ -1,0 +1,36 @@
+server:
+  port: 8761
+
+spring:
+  application:
+    name: naming-server
+
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+management:
+  endpoint:
+    health:
+      group:
+        liveness:
+          additional-path: server:/livez
+          show-details: always
+        readiness:
+          additional-path: server:/readyz
+          show-details: always
+  endpoints:
+    health:
+      enabled: true
+      probes:
+        enabled: true
+    web:
+      exposure:
+        include: '*'
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+  tracing:
+    sampling:
+      probability: 1.0

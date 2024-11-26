@@ -1,0 +1,77 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.3.5'
+	id 'io.spring.dependency-management' version '1.1.6'
+	id 'com.bmuschko.docker-spring-boot-application' version '9.4.0'
+}
+
+group = 'br.com.home'
+version = '0.0.1'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springCloudVersion', "2023.0.3")
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+String getConfigurationProperty(String envVar, String sysProp) {
+	System.getenv(envVar) ?: project.findProperty(sysProp)
+}
+
+docker {
+	registryCredentials {
+		username = getConfigurationProperty('DOCKER_USERNAME', 'docker.username')
+		password = getConfigurationProperty('DOCKER_PASSWORD', 'docker.password')
+		email = getConfigurationProperty('DOCKER_EMAIL', 'docker.email')
+	}
+}
+
+docker {
+	springBootApplication {
+		baseImage = 'openjdk:21'
+		ports = [8761]
+		images = ['durlag/naming-server']
+	}
+}
+
+import com.bmuschko.gradle.docker.tasks.container.*
+import com.github.dockerjava.api.model.RestartPolicy;
+
+task createContainer(type: DockerCreateContainer) {
+	dependsOn
+	containerName = "naming-server"
+	targetImageId dockerBuildImage.getImageId()
+	hostConfig.portBindings = ['8761:8761']
+	hostConfig.memory = 524288000L
+	hostConfig.autoRemove = false
+	hostConfig.restartPolicy = RestartPolicy.alwaysRestart().toString()
+}
